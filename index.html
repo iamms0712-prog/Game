@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>까돌이의 편의점 물질 분류 게임</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti for Celebration -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gothic+A1:wght@400;700;900&display=swap');
+
+        * {
+            font-family: 'Jua', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Background patterns */
+        .bg-convenience {
+            background-color: #f0fdf4;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Falling item style */
+        .falling-item {
+            position: absolute;
+            touch-action: none;
+            cursor: grab;
+            transition: transform 0.1s ease;
+            z-index: 30;
+        }
+
+        .falling-item:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+
+        /* Bin Glow Effects */
+        .bin-hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        .bin-correct {
+            animation: pulse-green 0.5s ease-in-out;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { transform: scale(1.08); box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* Incorrect X Mark Floating Animation */
+        .wrong-x {
+            position: absolute;
+            color: #ef4444;
+            font-size: 3rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: float-up-fade 0.8s forwards ease-out;
+            z-index: 50;
+        }
+
+        @keyframes float-up-fade {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-40px) scale(1.4); }
+        }
+
+        /* Score float text */
+        .score-float {
+            position: absolute;
+            color: #16a34a;
+            font-size: 2rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: float-score 0.8s forwards ease-out;
+            z-index: 50;
+        }
+
+        @keyframes float-score {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-30px); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 h-screen w-screen overflow-hidden flex items-center justify-center p-2 sm:p-4">
+
+    <!-- Game Container (16:9 Aspect Ratio Container maxed to screen) -->
+    <div id="game-container" class="relative w-full max-w-5xl h-full max-h-[750px] bg-convenience rounded-3xl shadow-2xl border-4 border-slate-700 overflow-hidden flex flex-col justify-between">
+        
+        <!-- ================= 1. START SCREEN ================= -->
+        <div id="start-screen" class="absolute inset-0 z-40 bg-emerald-500/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+            <!-- Kadori Mascot Visual -->
+            <div class="relative mb-4">
+                <div class="w-36 h-36 bg-blue-600 rounded-full border-4 border-white flex items-center justify-center shadow-xl relative overflow-hidden">
+                    <!-- Kadori face representation -->
+                    <div class="absolute inset-0 bg-gradient-to-b from-blue-500 to-blue-700"></div>
+                    <!-- Eyes -->
+                    <div class="absolute top-8 left-6 w-7 h-9 bg-white rounded-full flex items-center justify-center">
+                        <div class="w-4 h-4 bg-slate-900 rounded-full"></div>
+                    </div>
+                    <div class="absolute top-8 right-6 w-7 h-9 bg-white rounded-full flex items-center justify-center">
+                        <div class="w-4 h-4 bg-slate-900 rounded-full"></div>
+                    </div>
+                    <!-- Beak -->
+                    <div class="absolute top-16 w-12 h-10 bg-amber-400 rounded-full border-2 border-amber-600 flex items-center justify-center"></div>
+                    <!-- Cheek blush -->
+                    <div class="absolute top-16 left-3 w-4 h-3 bg-pink-400/60 rounded-full"></div>
+                    <div class="absolute top-16 right-3 w-4 h-3 bg-pink-400/60 rounded-full"></div>
+                    <!-- Uniform vest collar -->
+                    <div class="absolute bottom-0 w-full h-8 bg-red-600 border-t-2 border-white"></div>
+                </div>
+                <span class="absolute -bottom-2 -right-2 bg-amber-400 text-amber-950 text-xs font-bold px-3 py-1 rounded-full shadow border border-white">GS24 알바생</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-5xl font-black text-white drop-shadow-lg mb-3">
+                까돌이의 편의점 물질 분류 왕! 🏪
+            </h1>
+            <p class="text-lg sm:text-xl text-emerald-100 max-w-lg mb-6 leading-relaxed">
+                편의점에 엄청나게 많은 물건이 들어왔어요!<br>
+                하늘에서 떨어지는 물건을 **재료(나무, 철, 유리, 플라스틱, 고무)**에 맞춰 상자에 쏙쏙 넣어주세요!
+            </p>
+
+            <div class="bg-white/20 backdrop-blur-sm rounded-2xl p-4 mb-6 text-white text-sm sm:text-base space-y-1 max-w-md border border-white/30">
+                <p>⏱️ **총 플레이 시간:** 약 4분 (총 5단계)</p>
+                <p>⭐ **미션:** 갈수록 빨라지는 물체를 정확하게 분류하기!</p>
+            </div>
+
+            <button id="start-btn" onclick="startGame()" class="px-10 py-4 bg-amber-400 hover:bg-amber-300 text-slate-900 text-2xl font-black rounded-full shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 transition transform border-4 border-amber-200">
+                🎮 정리 시작하기!
+            </button>
+        </div>
+
+        <!-- ================= 2. TOP HEADER / HUD ================= -->
+        <header class="w-full bg-slate-800/90 text-white px-6 py-3 flex items-center justify-between z-20 shadow-md">
+            <!-- Stage Info -->
+            <div class="flex items-center space-x-3">
+                <span id="stage-badge" class="bg-emerald-500 text-white font-black px-4 py-1 rounded-full text-base sm:text-lg shadow">
+                    1단계 : 탐색
+                </span>
+                <span id="stage-desc" class="text-xs sm:text-sm text-slate-300 hidden sm:inline">
+                    (천천히 떨어지는 물체를 적응해보세요)
+                </span>
+            </div>
+
+            <!-- Score & Progress -->
+            <div class="flex items-center space-x-6">
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">남은 물체</span>
+                    <span id="item-counter" class="text-xl sm:text-2xl font-bold text-amber-400">0 / 0</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">현재 점수</span>
+                    <span id="score-text" class="text-xl sm:text-2xl font-bold text-emerald-400">0점</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ================= 3. GAMEPLAY DROP ZONE ================= -->
+        <main id="drop-zone" class="relative flex-1 w-full overflow-hidden">
+            <!-- Audio / Visual Helper Overlay if needed -->
+            <div id="combo-text" class="absolute top-4 left-1/2 -translate-x-1/2 text-3xl font-black text-amber-400 opacity-0 transition-opacity pointer-events-none drop-shadow-md">
+                🔥 3 연속 성공!
+            </div>
+        </main>
+
+        <!-- ================= 4. BOTTOM CLASSIFICATION BINS ================= -->
+        <footer class="w-full bg-slate-200/80 backdrop-blur-sm border-t-4 border-slate-300 p-3 sm:p-4 z-20">
+            <div class="grid grid-cols-5 gap-2 sm:gap-4 max-w-4xl mx-auto">
+                
+                <!-- 1. Wood Bin -->
+                <div data-material="wood" class="bin-box bg-amber-100 border-4 border-amber-600 rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-md">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-amber-600 text-white flex items-center justify-center text-xl sm:text-2xl mb-1">
+                        🪵
+                    </div>
+                    <span class="font-black text-amber-900 text-sm sm:text-xl">나무</span>
+                </div>
+
+                <!-- 2. Metal Bin -->
+                <div data-material="metal" class="bin-box bg-slate-100 border-4 border-slate-500 rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-md">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-600 text-white flex items-center justify-center text-xl sm:text-2xl mb-1">
+                        ⚙️
+                    </div>
+                    <span class="font-black text-slate-800 text-sm sm:text-xl">철</span>
+                </div>
+
+                <!-- 3. Glass Bin -->
+                <div data-material="glass" class="bin-box bg-cyan-50 border-4 border-cyan-400 rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-md">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-cyan-500 text-white flex items-center justify-center text-xl sm:text-2xl mb-1">
+                        🥛
+                    </div>
+                    <span class="font-black text-cyan-800 text-sm sm:text-xl">유리</span>
+                </div>
+
+                <!-- 4. Plastic Bin -->
+                <div data-material="plastic" class="bin-box bg-rose-50 border-4 border-rose-400 rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-md">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-rose-500 text-white flex items-center justify-center text-xl sm:text-2xl mb-1">
+                        🥤
+                    </div>
+                    <span class="font-black text-rose-800 text-sm sm:text-xl">플라스틱</span>
+                </div>
+
+                <!-- 5. Rubber Bin -->
+                <div data-material="rubber" class="bin-box bg-emerald-50 border-4 border-emerald-500 rounded-2xl p-2 sm:p-3 flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-md">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xl sm:text-2xl mb-1">
+                        🥊
+                    </div>
+                    <span class="font-black text-emerald-900 text-sm sm:text-xl">고무</span>
+                </div>
+
+            </div>
+        </footer>
+
+        <!-- ================= 5. SUCCESS SCREEN ================= -->
+        <div id="success-screen" class="hidden absolute inset-0 z-50 bg-indigo-900/95 backdrop-blur-lg flex flex-col items-center justify-center p-6 text-center text-white">
+            <div class="w-28 h-28 bg-amber-400 rounded-full flex items-center justify-center text-6xl mb-4 shadow-2xl animate-bounce border-4 border-white">
+                🏆
+            </div>
+            <h2 class="text-4xl sm:text-5xl font-black text-amber-300 mb-2">미션을 성공하였습니다!</h2>
+            <p class="text-xl sm:text-2xl font-bold text-slate-100 mb-6">
+                까돌이가 최고의 <span class="text-emerald-400 underline decoration-wavy">편의점 정리왕</span>이 되었어요! 🎉
+            </p>
+
+            <!-- Final Stats -->
+            <div class="bg-white/10 rounded-2xl p-6 mb-8 max-w-md w-full border border-white/20 text-left space-y-3">
+                <div class="flex justify-between text-lg">
+                    <span class="text-slate-300">최종 점수:</span>
+                    <span id="final-score" class="font-black text-amber-300 text-2xl">0점</span>
+                </div>
+                <div class="flex justify-between text-lg">
+                    <span class="text-slate-300">분류 성공률:</span>
+                    <span id="final-accuracy" class="font-black text-emerald-400 text-xl">100%</span>
+                </div>
+            </div>
+
+            <button onclick="location.reload()" class="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-black text-xl rounded-full shadow-lg hover:scale-105 transition border-2 border-white">
+                🔄 다시 도전하기
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Web Audio API Synthesizer Sound Effects -->
+    <script>
+        // Simple Web Audio API FX generator
+        const AudioFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playCorrect() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, this.ctx.currentTime); // C5
+                osc.frequency.exponentialRampToValueAtTime(659.25, this.ctx.currentTime + 0.1); // E5
+                osc.frequency.exponentialRampToValueAtTime(783.99, this.ctx.currentTime + 0.2); // G5
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            },
+            playWrong() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            },
+            playStageUp() {
+                this.init();
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.4);
+            }
+        };
+
+        /* ================= GAME DATA & CONFIGURATION ================= */
+        const ITEMS_DATABASE = [
+            // Wood (나무)
+            { name: "나무연필", material: "wood", icon: "✏️", bg: "bg-amber-100", border: "border-amber-500" },
+            { name: "나무책상", material: "wood", icon: "🪑", bg: "bg-amber-100", border: "border-amber-500" },
+            { name: "나무도마", material: "wood", icon: "🪵", bg: "bg-amber-100", border: "border-amber-500" },
+            { name: "나무숟가락", material: "wood", icon: "🥄", bg: "bg-amber-100", border: "border-amber-500" },
+
+            // Metal (철)
+            { name: "집게", material: "metal", icon: "🧷", bg: "bg-slate-100", border: "border-slate-500" },
+            { name: "손톱깎이", material: "metal", icon: "✂️", bg: "bg-slate-100", border: "border-slate-500" },
+            { name: "철클립", material: "metal", icon: "📎", bg: "bg-slate-100", border: "border-slate-500" },
+            { name: "음료수 캔", material: "metal", icon: "🥫", bg: "bg-slate-100", border: "border-slate-500" },
+
+            // Glass (유리)
+            { name: "유리컵", material: "glass", icon: "🥛", bg: "bg-cyan-50", border: "border-cyan-400" },
+            { name: "어항", material: "glass", icon: "🫧", bg: "bg-cyan-50", border: "border-cyan-400" },
+            { name: "유리구슬", material: "glass", icon: "🔮", bg: "bg-cyan-50", border: "border-cyan-400" },
+            { name: "유리병", material: "glass", icon: "🍾", bg: "bg-cyan-50", border: "border-cyan-400" },
+
+            // Plastic (플라스틱)
+            { name: "플라스틱자", material: "plastic", icon: "📏", bg: "bg-rose-50", border: "border-rose-400" },
+            { name: "장난감", material: "plastic", icon: "🧩", bg: "bg-rose-50", border: "border-rose-400" },
+            { name: "페트병", material: "plastic", icon: "🍾", bg: "bg-rose-50", border: "border-rose-400" },
+            { name: "플라스틱그릇", material: "plastic", icon: "🥣", bg: "bg-rose-50", border: "border-rose-400" },
+
+            // Rubber (고무)
+            { name: "고무줄", material: "rubber", icon: "⭕", bg: "bg-emerald-50", border: "border-emerald-500" },
+            { name: "고무장갑", material: "rubber", icon: "🧤", bg: "bg-emerald-50", border: "border-emerald-500" },
+            { name: "지우개", material: "rubber", icon: "🧹", bg: "bg-emerald-50", border: "border-emerald-500" }
+        ];
+
+        // 5 Stages configuration (~4 Minutes Total Gameplay)
+        const STAGES = [
+            { stage: 1, name: "1단계 : 탐색하기", desc: "완만하게 떨어지는 물체를 천천히 분류해보세요.", itemCount: 10, speed: 1.2, spawnInterval: 3500 },
+            { stage: 2, name: "2단계 : 적응하기", desc: "조금 더 자주 물체가 내려옵니다!", itemCount: 14, speed: 1.6, spawnInterval: 2800 },
+            { stage: 3, name: "3단계 : 도전하기", desc: "다양한 물체들이 쏟아집니다!", itemCount: 18, speed: 2.1, spawnInterval: 2200 },
+            { stage: 4, name: "4단계 : 스피드 분류", desc: "빠른 순발력이 필요해요!", itemCount: 22, speed: 2.6, spawnInterval: 1800 },
+            { stage: 5, name: "5단계 : 최종 분류왕", desc: "최종 정리왕에 도전하세요!", itemCount: 26, speed: 3.2, spawnInterval: 1500 }
+        ];
+
+        /* ================= GAME STATE VARIABLES ================= */
+        let currentStageIndex = 0;
+        let score = 0;
+        let totalProcessed = 0;
+        let correctProcessed = 0;
+        let stageSpawnedCount = 0;
+        let stageClearedCount = 0;
+
+        let spawnTimer = null;
+        let animFrameId = null;
+        let activeItems = [];
+
+        // DOM Elements
+        const dropZone = document.getElementById('drop-zone');
+        const scoreText = document.getElementById('score-text');
+        const itemCounter = document.getElementById('item-counter');
+        const stageBadge = document.getElementById('stage-badge');
+        const stageDesc = document.getElementById('stage-desc');
+        const bins = document.querySelectorAll('.bin-box');
+
+        /* ================= GAME START & LOGIC ================= */
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            AudioFX.init();
+            resetGame();
+            loadStage(0);
+        }
+
+        function resetGame() {
+            currentStageIndex = 0;
+            score = 0;
+            totalProcessed = 0;
+            correctProcessed = 0;
+            updateHUD();
+        }
+
+        function loadStage(index) {
+            currentStageIndex = index;
+            const currentStage = STAGES[currentStageIndex];
+            
+            stageSpawnedCount = 0;
+            stageClearedCount = 0;
+
+            stageBadge.textContent = currentStage.name;
+            stageDesc.textContent = `(${currentStage.desc})`;
+            updateHUD();
+
+            AudioFX.playStageUp();
+
+            // Clear old items
+            activeItems.forEach(item => item.element.remove());
+            activeItems = [];
+
+            // Start spawning
+            clearInterval(spawnTimer);
+            spawnTimer = setInterval(spawnItem, currentStage.spawnInterval);
+            
+            // Initial item spawn right away
+            spawnItem();
+
+            // Loop animation for movement
+            if (!animFrameId) {
+                animFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function spawnItem() {
+            const currentStage = STAGES[currentStageIndex];
+            if (stageSpawnedCount >= currentStage.itemCount) {
+                clearInterval(spawnTimer);
+                return;
+            }
+
+            // Pick random item from DB
+            const randomData = ITEMS_DATABASE[Math.floor(Math.random() * ITEMS_DATABASE.length)];
+            stageSpawnedCount++;
+
+            // Create DOM element
+            const el = document.createElement('div');
+            el.className = `falling-item ${randomData.bg} border-4 ${randomData.border} rounded-2xl px-4 py-2 shadow-lg flex items-center space-x-2 select-none`;
+            el.innerHTML = `
+                <span class="text-2xl">${randomData.icon}</span>
+                <span class="font-black text-slate-800 text-sm sm:text-base">${randomData.name}</span>
+            `;
+
+            dropZone.appendChild(el);
+
+            // Compute positions
+            const dropRect = dropZone.getBoundingClientRect();
+            const itemWidth = 140;
+            const randomX = Math.random() * (dropRect.width - itemWidth - 20) + 10;
+
+            const itemObj = {
+                element: el,
+                data: randomData,
+                x: randomX,
+                y: -60,
+                speed: currentStage.speed,
+                isDragging: false
+            };
+
+            el.style.left = `${itemObj.x}px`;
+            el.style.top = `${itemObj.y}px`;
+
+            // Setup Touch / Mouse Dragging Events
+            setupDragEvents(itemObj);
+
+            activeItems.push(itemObj);
+            updateHUD();
+        }
+
+        /* ================= MAIN MOVEMENT LOOP ================= */
+        function gameLoop() {
+            const dropRect = dropZone.getBoundingClientRect();
+            const bottomLimit = dropRect.height - 20;
+
+            for (let i = activeItems.length - 1; i >= 0; i--) {
+                const item = activeItems[i];
+
+                if (!item.isDragging) {
+                    item.y += item.speed;
+                    item.element.style.top = `${item.y}px`;
+
+                    // Check if dropped off bottom limit
+                    if (item.y > bottomLimit) {
+                        showWrongFeedback(item.x + 40, bottomLimit - 40);
+                        removeItem(i);
+                        handleItemMiss();
+                    }
+                }
+            }
+
+            animFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        /* ================= DRAG AND DROP HANDLING ================= */
+        function setupDragEvents(item) {
+            const el = item.element;
+            let startX = 0, startY = 0;
+
+            const onPointerDown = (e) => {
+                item.isDragging = true;
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                
+                const rect = el.getBoundingClientRect();
+                startX = clientX - rect.left;
+                startY = clientY - rect.top;
+
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+            };
+
+            const onPointerMove = (e) => {
+                if (!item.isDragging) return;
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+                const dropRect = dropZone.getBoundingClientRect();
+                item.x = clientX - dropRect.left - startX;
+                item.y = clientY - dropRect.top - startY;
+
+                el.style.left = `${item.x}px`;
+                el.style.top = `${item.y}px`;
+
+                // Highlight bin hovering
+                checkBinHover(item);
+            };
+
+            const onPointerUp = (e) => {
+                if (!item.isDragging) return;
+                item.isDragging = false;
+
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+
+                // Check collision with bins
+                const targetBin = checkBinDrop(item);
+                const itemIndex = activeItems.indexOf(item);
+
+                if (targetBin) {
+                    const targetMaterial = targetBin.getAttribute('data-material');
+                    if (item.data.material === targetMaterial) {
+                        // Correct
+                        handleCorrectClassification(targetBin, item.x, item.y);
+                        removeItem(itemIndex);
+                    } else {
+                        // Wrong bin
+                        showWrongFeedback(item.x + 40, item.y);
+                        removeItem(itemIndex);
+                        handleItemMiss();
+                    }
+                }
+
+                // Remove bin highlights
+                bins.forEach(bin => bin.classList.remove('bin-hover'));
+            };
+
+            el.addEventListener('pointerdown', onPointerDown);
+        }
+
+        function checkBinHover(item) {
+            const itemRect = item.element.getBoundingClientRect();
+            bins.forEach(bin => {
+                const binRect = bin.getBoundingClientRect();
+                if (isOverlapping(itemRect, binRect)) {
+                    bin.classList.add('bin-hover');
+                } else {
+                    bin.classList.remove('bin-hover');
+                }
+            });
+        }
+
+        function checkBinDrop(item) {
+            const itemRect = item.element.getBoundingClientRect();
+            for (let bin of bins) {
+                const binRect = bin.getBoundingClientRect();
+                if (isOverlapping(itemRect, binRect)) {
+                    return bin;
+                }
+            }
+            return null;
+        }
+
+        function isOverlapping(r1, r2) {
+            return !(r1.right < r2.left || 
+                     r1.left > r2.right || 
+                     r1.bottom < r2.top || 
+                     r1.top > r2.bottom);
+        }
+
+        /* ================= FEEDBACK & SCORING ================= */
+        function handleCorrectClassification(binElement, x, y) {
+            AudioFX.playCorrect();
+            score += 100;
+            totalProcessed++;
+            correctProcessed++;
+            stageClearedCount++;
+
+            // Bin Pulse effect
+            binElement.classList.add('bin-correct');
+            setTimeout(() => binElement.classList.remove('bin-correct'), 500);
+
+            // Floating Score text
+            const scoreEl = document.createElement('div');
+            scoreEl.className = 'score-float';
+            scoreEl.textContent = '+100';
+            scoreEl.style.left = `${x}px`;
+            scoreEl.style.top = `${y}px`;
+            dropZone.appendChild(scoreEl);
+            setTimeout(() => scoreEl.remove(), 800);
+
+            checkStageProgress();
+        }
+
+        function handleItemMiss() {
+            AudioFX.playWrong();
+            totalProcessed++;
+            stageClearedCount++;
+            checkStageProgress();
+        }
+
+        function showWrongFeedback(x, y) {
+            const xEl = document.createElement('div');
+            xEl.className = 'wrong-x';
+            xEl.textContent = '❌';
+            xEl.style.left = `${x}px`;
+            xEl.style.top = `${y}px`;
+            dropZone.appendChild(xEl);
+            setTimeout(() => xEl.remove(), 800);
+        }
+
+        function removeItem(index) {
+            if (index > -1 && index < activeItems.length) {
+                activeItems[index].element.remove();
+                activeItems.splice(index, 1);
+            }
+        }
+
+        function updateHUD() {
+            const currentStage = STAGES[currentStageIndex];
+            scoreText.textContent = `${score}점`;
+            itemCounter.textContent = `${stageClearedCount} / ${currentStage.itemCount}`;
+        }
+
+        function checkStageProgress() {
+            updateHUD();
+            const currentStage = STAGES[currentStageIndex];
+
+            if (stageClearedCount >= currentStage.itemCount && activeItems.length === 0) {
+                // Advance to next stage or finish game
+                if (currentStageIndex + 1 < STAGES.length) {
+                    setTimeout(() => loadStage(currentStageIndex + 1), 1000);
+                } else {
+                    setTimeout(showSuccessScreen, 1000);
+                }
+            }
+        }
+
+        /* ================= GAME SUCCESS ================= */
+        function showSuccessScreen() {
+            cancelAnimationFrame(animFrameId);
+            clearInterval(spawnTimer);
+
+            document.getElementById('success-screen').classList.remove('hidden');
+            document.getElementById('final-score').textContent = `${score}점`;
+
+            const accuracy = totalProcessed > 0 ? Math.round((correctProcessed / totalProcessed) * 100) : 100;
+            document.getElementById('final-accuracy').textContent = `${accuracy}%`;
+
+            // Confetti Celebration
+            if (window.confetti) {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+    </script>
+</body>
+</html>
